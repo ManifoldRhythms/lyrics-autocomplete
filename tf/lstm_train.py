@@ -131,8 +131,6 @@ def train_fn(source, target):
         tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=target, logits=logits))
 
-    # accuracy = tf.reduce_mean(tf.cast(tf.equal(Y_, tf.cast(Y, tf.uint8)), tf.float32))
-
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     if tpu_grpc_url:
         optimizer = tf.contrib.tpu.CrossShardOptimizer(optimizer)
@@ -152,13 +150,10 @@ def eval_fn(source, target):
 
     def metric_fn(labels, logits):
         labels = tf.cast(labels, tf.int64)
-        # accuracy = tf.metrics.accuracy(
-        #     labels=labels, predictions=tf.argmax(logits, axis=1))
 
         return {
             'recall@1': tf.metrics.recall_at_k(labels, logits, 1),
-            'recall@5': tf.metrics.recall_at_k(labels, logits, 5),
-            # 'accuracy': accuracy
+            'recall@5': tf.metrics.recall_at_k(labels, logits, 5)
         }
 
     eval_metrics = (metric_fn, [target, logits])
