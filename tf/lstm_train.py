@@ -5,7 +5,7 @@ import pprint
 import re
 import numpy as np
 
-from common import TPU_WORKER, TRAINING_DATA_DIR, MODEL_CHECKPOINTS_DIR, MODEL_LOG_TRAIN_DIR, MODEL_LOG_EVAL_DIR
+from common import TPU_WORKER, TRAINING_DATA_DIR, TRAINING_DATA_FILENAME, MODEL_CHECKPOINTS_DIR, MODEL_LOG_TRAIN_DIR, MODEL_LOG_EVAL_DIR
 
 RANDOM_SEED = 42  # An arbitrary choice.
 MAX_STEPS=2000
@@ -35,21 +35,22 @@ def input_fn(params):
     batch_size = params['batch_size']
     tf.logging.info('Batch size: {}'.format(batch_size))
     seq_len = params['seq_len']
-    directory = params['source_directory']
+    filename = params['source_filename']
+    # directory = params['source_directory']
     
-    filelist = tf.gfile.ListDirectory(directory)
+    # filelist = tf.gfile.ListDirectory(directory)
 
     all_txt = ''
 
-    for filename in filelist:
-        filename = os.path.join(directory, filename)
-        with tf.gfile.GFile(filename, 'r') as f:
-            if re.match(r".*?billboard", filename):
-                tf.logging.info("Skipping file {}".format(filename))
-            else:
-                tf.logging.info("Loading file {}".format(filename))
-                txt = f.read()
-                all_txt = all_txt + ''.join([x for x in txt if ord(x) < 128])
+    # for filename in filelist:
+    #     filename = os.path.join(directory, filename)
+    with tf.gfile.GFile(filename, 'r') as f:
+        # if re.match(r".*?billboard", filename):
+        #     tf.logging.info("Skipping file {}".format(filename))
+        # else:
+        tf.logging.info("Loading file {}".format(filename))
+        txt = f.read()
+        all_txt = all_txt + ''.join([x for x in txt if ord(x) < 128])
 
     tf.logging.info('Sample text: {} \n\n(length={})'.format(all_txt[1000:1010], len(all_txt)))
 
@@ -246,7 +247,7 @@ def _make_estimator(num_shards, use_tpu=True):
         train_batch_size=BATCHSIZE * 8,
         eval_batch_size=BATCHSIZE * 8,
         predict_batch_size=BATCHSIZE,
-        params={'seq_len': SEQLEN, 'source_directory': TRAINING_DATA_DIR},
+        params={'seq_len': SEQLEN, 'source_directory': TRAINING_DATA_DIR, 'source_filename': TRAINING_DATA_FILENAME},
     )
     return estimator
 

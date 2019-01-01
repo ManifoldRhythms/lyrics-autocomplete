@@ -10,3 +10,4 @@ MODEL_LOG_TRAIN_DIR = os.path.join(MODEL_LOG_DIR, "train/")
 MODEL_LOG_EVAL_DIR = os.path.join(MODEL_LOG_DIR, "eval/")
 
 TRAINING_DATA_DIR = os.path.join(GCS_BUCKET_NAME, "lyrics/")
+TRAINING_DATA_FILENAME = os.path.join(GCS_BUCKET_NAME, "lyrics_data.txt")
