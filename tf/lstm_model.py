@@ -9,8 +9,8 @@ from common import TPU_WORKER, TRAINING_DATA_DIR, TRAINING_DATA_FILENAME, MODEL_
 
 RANDOM_SEED = 42  # An arbitrary choice.
 MAX_STEPS=2000
-SEQLEN = 30
-BATCHSIZE = 128
+SEQLEN = 128
+BATCHSIZE = 128 * 2
 EMBEDDING_DIM = 1024
 # learning_rate = 0.001  # fixed learning rate
 learning_rate = 0.01  # fixed learning rate
@@ -72,7 +72,7 @@ def input_fn(params):
             'target': tf.reshape(src[idx + 1:idx + seq_len + 1], [seq_len])
         }
 
-    ds = ds.map(_select_seq)
+    ds = ds.map(_select_seq, num_parallel_calls=16)
     ds = ds.batch(batch_size, drop_remainder=True)
     ds = ds.prefetch(2)
     return ds
@@ -151,9 +151,12 @@ def eval_fn(source, target):
     def metric_fn(labels, logits):
         labels = tf.cast(labels, tf.int64)
 
+        # accuracy = tf.metrics.accuracy(labels=labels, predictions=tf.argmax(logits, axis=1))
+
         return {
             'recall@1': tf.metrics.recall_at_k(labels, logits, 1),
-            'recall@5': tf.metrics.recall_at_k(labels, logits, 5)
+            'recall@5': tf.metrics.recall_at_k(labels, logits, 5),
+            # 'accuracy': accuracy
         }
 
     eval_metrics = (metric_fn, [target, logits])

@@ -188,7 +188,7 @@ Using the
 Cloud Shell session start the training.
 
 ```bash
-python3 tf/lstm_model.py
+python3 tf/train.py
 ```
 
 ### Monitor Training
