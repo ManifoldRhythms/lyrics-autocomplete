@@ -112,7 +112,7 @@ Let's cover each part in turn. We'll first look at the training step.
 
 Finally we return a `TPUEstimatorSpec` indicating how TPUEstimator should train our model.
 
-<walkthrough-editor-select-line filePath="lyrics-autocomplete/tf/lstm_train.py" startLine="125" startCharacterOffset="0" endLine="125" endCharacterOffset="30">
+<walkthrough-editor-select-line filePath="lyrics-autocomplete/tf/lstm_model.py" startLine="125" startCharacterOffset="0" endLine="125" endCharacterOffset="30">
 Open `train_fn`
 </walkthrough-editor-select-line>
 
@@ -122,7 +122,7 @@ Open `train_fn`
 Next, evaluation. This is simpler: we run our model forward and check how well it predicts the next character. 
 Again, we return a `TPUEstimatorSpec` to tell TPUEstimator how to evaluate the model.
 
-<walkthrough-editor-select-line filePath="lyrics-autocomplete/tf/lstm_train.py" startLine="143" startCharacterOffset="0" endLine="143" endCharacterOffset="29">
+<walkthrough-editor-select-line filePath="lyrics-autocomplete/tf/lstm_model.py" startLine="143" startCharacterOffset="0" endLine="143" endCharacterOffset="29">
 Open `eval_fn`
 </walkthrough-editor-select-line>
 
@@ -132,7 +132,7 @@ Open `eval_fn`
 We leave the most complicated part for last. There's nothing TPU specific here! For predictions we use the input tensor 
 as a seed for our model. We then use a TensorFlow loop to sample characters from our model and return the result.
 
-<walkthrough-editor-select-line filePath="lyrics-autocomplete/tf/lstm_train.py" startLine="164" startCharacterOffset="0" endLine="164" endCharacterOffset="24">
+<walkthrough-editor-select-line filePath="lyrics-autocomplete/tf/lstm_model.py" startLine="164" startCharacterOffset="0" endLine="164" endCharacterOffset="24">
 Open `predict_fn`
 </walkthrough-editor-select-line>
 
@@ -141,7 +141,7 @@ Open `predict_fn`
 
 We can now use our helper functions to build our combined model function and train our model!
 
-<walkthrough-editor-select-line filePath="lyrics-autocomplete/tf/lstm_train.py" startLine="220" startCharacterOffset="0" endLine="220" endCharacterOffset="46">
+<walkthrough-editor-select-line filePath="lyrics-autocomplete/tf/lstm_model.py" startLine="220" startCharacterOffset="0" endLine="220" endCharacterOffset="46">
 Open `model_fn`
 </walkthrough-editor-select-line>
 
@@ -174,7 +174,7 @@ Now we can train our model!
 ### Train Length
 
 We will train for
-<walkthrough-editor-select-line filePath="lyrics-autocomplete/tf/lstm_train.py" startLine="10" startCharacterOffset="10" endLine="10" endCharacterOffset="15">
+<walkthrough-editor-select-line filePath="lyrics-autocomplete/tf/lstm_model.py" startLine="10" startCharacterOffset="10" endLine="10" endCharacterOffset="15">
 2000
 </walkthrough-editor-select-line>
 steps.
@@ -188,7 +188,7 @@ Using the
 Cloud Shell session start the training.
 
 ```bash
-python3 tf/lstm_train.py
+python3 tf/lstm_model.py
 ```
 
 ### Monitor Training

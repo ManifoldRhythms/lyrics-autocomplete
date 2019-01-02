@@ -5,7 +5,7 @@ import pprint
 import re
 import numpy as np
 
-from common import TPU_WORKER, TRAINING_DATA_DIR, TRAINING_DATA_FILENAME, MODEL_CHECKPOINTS_DIR, MODEL_LOG_TRAIN_DIR, MODEL_LOG_EVAL_DIR
+from common import TPU_WORKER, TRAINING_DATA_DIR, TRAINING_DATA_FILENAME, MODEL_CHECKPOINTS_DIR
 
 RANDOM_SEED = 42  # An arbitrary choice.
 MAX_STEPS=2000
@@ -132,7 +132,7 @@ def train_fn(source, target):
             labels=target, logits=logits))
 
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-    if tpu_grpc_url:
+    if TPU_WORKER:
         optimizer = tf.contrib.tpu.CrossShardOptimizer(optimizer)
     train_op = optimizer.minimize(loss, tf.train.get_global_step())
     return tf.contrib.tpu.TPUEstimatorSpec(
@@ -226,7 +226,7 @@ def model_fn(features, labels, mode, params):
     if mode == tf.estimator.ModeKeys.PREDICT:
         return predict_fn(features['source'])
 
-def _make_estimator(num_shards, use_tpu=True):
+def _make_estimator(num_shards, use_tpu=True, tpu_grpc_url=None):
     config = tf.contrib.tpu.RunConfig(
         tf_random_seed=RANDOM_SEED,
         master=tpu_grpc_url,
@@ -245,37 +245,3 @@ def _make_estimator(num_shards, use_tpu=True):
         params={'seq_len': SEQLEN, 'source_directory': TRAINING_DATA_DIR, 'source_filename': TRAINING_DATA_FILENAME},
     )
     return estimator
-
-def _seed_input_fn(params):
-  del params
-  seed_txt = 'I am blind; the truth is screaming at me'
-  seed = transform(seed_txt)
-  seed = tf.constant(seed.reshape([1, -1]), dtype=tf.int32)
-  # Predict must return a Dataset, not a Tensor.
-  return tf.data.Dataset.from_tensors({'source': seed})
-
-def train():
-    # Use all 8 cores for training
-    estimator = _make_estimator(num_shards=8, use_tpu=True)
-    estimator.train(
-        input_fn=input_fn,
-        # max_steps=MAX_STEPS,
-        steps=MAX_STEPS,
-    )
-
-def predict():
-    # Use 1 core for prediction since we're only generating a single element batch
-    estimator = _make_estimator(num_shards=None, use_tpu=False)
-
-    idx = next(estimator.predict(input_fn=_seed_input_fn))['predictions']
-    print(''.join([chr(i) for i in idx]))
-
-tf.logging.set_verbosity(tf.logging.DEBUG)
-tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(tpu=[TPU_WORKER])
-tpu_grpc_url = tpu_cluster_resolver.get_master()
-
-tf.reset_default_graph()
-tf.set_random_seed(0)
-
-train()
-# predict()
