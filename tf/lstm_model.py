@@ -9,7 +9,7 @@ from common import TPU_WORKER, TRAINING_DATA_DIR, TRAINING_DATA_FILENAME, MODEL_
 
 RANDOM_SEED = 42  # An arbitrary choice.
 MAX_STEPS=2000
-SEQLEN = 128
+SEQLEN = 30
 BATCHSIZE = 128 * 2
 EMBEDDING_DIM = 1024
 # learning_rate = 0.001  # fixed learning rate
@@ -72,9 +72,9 @@ def input_fn(params):
             'target': tf.reshape(src[idx + 1:idx + seq_len + 1], [seq_len])
         }
 
-    ds = ds.map(_select_seq, num_parallel_calls=16)
+    ds = ds.map(_select_seq, num_parallel_calls=100)
     ds = ds.batch(batch_size, drop_remainder=True)
-    ds = ds.prefetch(2)
+    ds = ds.prefetch(BATCHSIZE)
     return ds
 
 # Construct a 2-layer LSTM

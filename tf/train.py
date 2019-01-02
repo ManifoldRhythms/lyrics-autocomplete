@@ -2,7 +2,7 @@ import tensorflow as tf
 from common import TPU_WORKER
 import lstm_model as model
 
-EPOCHS=10
+EPOCHS=5
 
 def train():
     # Use all 8 cores for training
