@@ -40,7 +40,8 @@ class TPUProfilerHook(tf.train.SessionRunHook):
                output_dir,
                save_steps=None,
                save_secs=None,
-               tpu_profiler_command=None):
+               tpu_profiler_command=None,
+               profile_duration=2000):
     """Initializes a hook that takes periodic profiling snapshots.
 
     Args:
@@ -79,6 +80,7 @@ class TPUProfilerHook(tf.train.SessionRunHook):
     else:
       self._tpu_profiler_command += ["--tpu=" + tpu]
     self._tpu_profiler_command += ["--logdir=" + output_dir]
+    self._tpu_profiler_command += ["--duration_ms=" + str(profile_duration)]
     self._running_process = None
     self._ran_first_step = False
 

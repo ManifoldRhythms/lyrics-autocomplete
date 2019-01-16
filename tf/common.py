@@ -4,7 +4,7 @@ import tensorflow as tf
 tf.flags.DEFINE_string(
     "tpu_name", default=os.getenv('TPU_NAME'),
     help="The Cloud TPU to use for training. This should be the name used when "
-    "creating the Cloud TPU. To find out hte name of TPU, either use command "
+    "creating the Cloud TPU. To find out the name of TPU, either use command "
     "'gcloud compute tpus list --zone=<zone-name>', or use "
     "'ctpu status --details' if you have created Cloud TPU using 'ctpu up'.")
 
@@ -41,9 +41,12 @@ tf.flags.DEFINE_integer(
     "iterations", default=500,
     help="Number of iterations per TPU training loop.")
 tf.flags.DEFINE_integer(
-    'profile_every_n_steps', default=1000,
+    'profile_every_n_steps', default=0,
     help=('Number of steps between collecting profiles if larger than 0'))
 
+tf.flags.DEFINE_bool(
+    "dry_run", default=True,
+    help="")
 
 FLAGS = tf.flags.FLAGS
 

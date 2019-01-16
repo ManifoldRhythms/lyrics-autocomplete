@@ -11,7 +11,10 @@ RANDOM_SEED = 42  # An arbitrary choice.
 MAX_STEPS=common.MAX_STEPS
 BATCHSIZE = common.BATCHSIZE
 EMBEDDING_DIM = 1024
-learning_rate = common.LEARNING_RATE
+NCELLS = 2
+# learning_rate = common.LEARNING_RATE
+# dropout_pkeep = 0.8    # some dropout
+dropout_pkeep = 1.0    # some dropout
 
 def variable_summaries(var):
   """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
@@ -38,15 +41,13 @@ def input_fn(params):
 
     with tf.gfile.GFile(filename, 'r') as f:
         tf.logging.info("Loading file {}".format(filename))
-        txt = f.read()
+        txt = f.read().replace('NA', '')
         all_txt = all_txt + ''.join([x for x in txt if ord(x) < 128])
-
-    # tf.logging.info('Sample text: {} \n\n(length={})'.format(all_txt[1000:1010], len(all_txt)))
 
     # randomly sample 10 characters from text dataset
     all_text_len = len(all_txt)
-    sample_text_start = randrange(0, all_text_len-10)
-    tf.logging.info('Sample text: {} \n\n(length={})'.format(all_txt[sample_text_start:sample_text_start+10], all_text_len))
+    sample_text_start = randrange(0, all_text_len-seq_len)
+    tf.logging.info('Sample text: {} \n\n(length={})'.format(all_txt[sample_text_start:sample_text_start+seq_len], all_text_len))
 
     source = tf.constant(transform(all_txt), dtype=tf.int32)
     ds = tf.data.Dataset.from_tensors(source)
@@ -72,7 +73,7 @@ def input_fn(params):
     return ds
 
 # Construct a 2-layer LSTM
-def _lstm(inputs, batch_size, initial_state=None):
+def _lstm(inputs, batch_size, initial_state=None, params=None):
     def _make_cell(layer_idx):
         with tf.variable_scope('lstm/%d' % layer_idx,):
             return tf.nn.rnn_cell.LSTMCell(
@@ -81,11 +82,13 @@ def _lstm(inputs, batch_size, initial_state=None):
                 reuse=tf.AUTO_REUSE,
             )
 
-    cell = tf.nn.rnn_cell.MultiRNNCell([
-        _make_cell(0), 
-        _make_cell(1), 
-        # _make_cell(2),
-    ])
+    dropout = 1.0 if params is None else params['dropout']
+    cells = [_make_cell(ix) for ix in range(NCELLS)]
+
+    dropcells = [tf.nn.rnn_cell.DropoutWrapper(cell,input_keep_prob=dropout) for cell in cells]
+    multicell = tf.nn.rnn_cell.MultiRNNCell(dropcells)
+    cell = tf.nn.rnn_cell.DropoutWrapper(multicell, output_keep_prob=dropout)  # dropout for the softmax layer
+
     if initial_state is None:
         initial_state = cell.zero_state(batch_size, tf.float32)
 
@@ -93,7 +96,7 @@ def _lstm(inputs, batch_size, initial_state=None):
         cell, inputs, initial_state=initial_state, use_tpu=True)
     return outputs, final_state
 
-def lstm_model(seq, initial_state=None):
+def lstm_model(seq, initial_state=None, params=None):
     with tf.variable_scope('lstm', 
                             initializer=tf.orthogonal_initializer,
                             reuse=tf.AUTO_REUSE):
@@ -108,7 +111,7 @@ def lstm_model(seq, initial_state=None):
         embedding = tf.nn.embedding_lookup(embedding_params, seq)
 
         lstm_output, lstm_state = _lstm(
-            embedding, batch_size, initial_state=initial_state)
+            embedding, batch_size, initial_state=initial_state, params=params)
 
         # Apply a single dense layer to the output of our LSTM to predict
         # our final characters.  This looks awkward as we have to flatten
@@ -118,8 +121,12 @@ def lstm_model(seq, initial_state=None):
         logits = tf.reshape(logits, [-1, seq_len, 256])
         return logits, lstm_state
 
-def train_fn(source, target):
-    logits, lstm_state = lstm_model(source)
+def train_fn(source, target, params=None):
+    global_step = tf.train.get_global_step()
+    learning_rate = tf.train.exponential_decay(common.LEARNING_RATE, global_step,
+                                            100000, 0.96, staircase=True)
+
+    logits, lstm_state = lstm_model(source, params=params)
     batch_size = source.shape[0]
 
     loss = tf.reduce_mean(
@@ -129,15 +136,15 @@ def train_fn(source, target):
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     if common.TPU_WORKER:
         optimizer = tf.contrib.tpu.CrossShardOptimizer(optimizer)
-    train_op = optimizer.minimize(loss, tf.train.get_global_step())
+    train_op = optimizer.minimize(loss, global_step)
     return tf.contrib.tpu.TPUEstimatorSpec(
         mode=tf.estimator.ModeKeys.TRAIN,
         loss=loss,
         train_op=train_op,
     )
 
-def eval_fn(source, target):
-    logits, _ = lstm_model(source)
+def eval_fn(source, target, params=None):
+    logits, _ = lstm_model(source, params=params)
 
     loss = tf.reduce_mean(
         tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -146,14 +153,11 @@ def eval_fn(source, target):
     def metric_fn(labels, logits):
         labels = tf.cast(labels, tf.int64)
 
-        # accuracy = tf.metrics.accuracy(labels, logits)
-
         return {
             'recall@1': tf.metrics.recall_at_k(labels, logits, 1),
             'recall@5': tf.metrics.recall_at_k(labels, logits, 5),
             'precision@1': tf.metrics.precision_at_k(labels, logits, 1),
             'precision@5': tf.metrics.precision_at_k(labels, logits, 5),
-            # 'accuracy': accuracy
         }
 
     eval_metrics = (metric_fn, [target, logits])
@@ -162,10 +166,10 @@ def eval_fn(source, target):
         loss=loss, 
         eval_metrics=eval_metrics)
 
-def predict_fn(source):
+def predict_fn(source, params=None):
     # Seed the model with our initial array
     batch_size = source.shape[0]
-    logits, lstm_state = lstm_model(source)
+    logits, lstm_state = lstm_model(source, params=params)
 
     def _body(i, state, preds):
         """Body of our prediction loop: predict the next character."""
@@ -220,11 +224,13 @@ def predict_fn(source):
 
 def model_fn(features, labels, mode, params):
     if mode == tf.estimator.ModeKeys.TRAIN:
-        return train_fn(features['source'], features['target'])
+        return train_fn(features['source'], features['target'], params=params)
     if mode == tf.estimator.ModeKeys.EVAL:
-        return eval_fn(features['source'], features['target'])
+        params['dropout'] = 1.0
+        return eval_fn(features['source'], features['target'], params=params)
     if mode == tf.estimator.ModeKeys.PREDICT:
-        return predict_fn(features['source'])
+        params['dropout'] = 1.0
+        return predict_fn(features['source'], params=params)
 
 def _make_estimator(num_shards, use_tpu=True, tpu_grpc_url=None):
     config = tf.contrib.tpu.RunConfig(
@@ -244,6 +250,11 @@ def _make_estimator(num_shards, use_tpu=True, tpu_grpc_url=None):
         train_batch_size=BATCHSIZE,
         eval_batch_size=BATCHSIZE,
         predict_batch_size=BATCHSIZE,
-        params={'seq_len': common.SEQLEN, 'source_directory': common.TRAINING_DATA_DIR, 'source_filename': common.TRAINING_DATA_FILENAME},
+        params={
+            'seq_len': common.SEQLEN,
+            'source_directory': common.TRAINING_DATA_DIR,
+            'source_filename': common.TRAINING_DATA_FILENAME,
+            'dropout': dropout_pkeep
+        },
     )
     return estimator
