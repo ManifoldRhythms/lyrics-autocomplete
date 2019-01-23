@@ -2,11 +2,8 @@ import os
 import tensorflow as tf
 
 tf.flags.DEFINE_string(
-    "tpu_name", default=os.getenv('TPU_NAME'),
-    help="The Cloud TPU to use for training. This should be the name used when "
-    "creating the Cloud TPU. To find out the name of TPU, either use command "
-    "'gcloud compute tpus list --zone=<zone-name>', or use "
-    "'ctpu status --details' if you have created Cloud TPU using 'ctpu up'.")
+    "tpu_name", default="jeremy-v3",
+    help="The Cloud TPU to use for training.")
 
 # Model specific parameters
 tf.flags.DEFINE_string(
@@ -45,7 +42,7 @@ tf.flags.DEFINE_integer(
     help=('Number of steps between collecting profiles if larger than 0'))
 
 tf.flags.DEFINE_bool(
-    "dry_run", default=True,
+    "dry_run", default=False,
     help="")
 
 FLAGS = tf.flags.FLAGS
