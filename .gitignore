@@ -218,3 +218,6 @@ predictions/
 # model and data
 lyrics_data.txt
 lyrics_model.h5
+
+# gan model artifacts
+gan/pkl/
