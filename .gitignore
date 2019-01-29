@@ -214,3 +214,7 @@ dmypy.json
 
 output/
 predictions/
+
+# model and data
+lyrics_data.txt
+lyrics_model.h5
